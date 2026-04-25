@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timetable Scheduler | Admin</title>
+    <link rel="icon" type="image/jpg" href="nec-logo.jpg">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body class="animate-fade-in">
+    <nav class="navbar navbar-expand-lg glass-navbar mb-5">
+        <div class="container">
+            <a class="navbar-brand" href="/">TIMETABLE <span class="text-white opacity-50">SCHEDULER</span></a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link active" href="/"><i class="bi bi-speedometer2 me-1"></i>
+                            Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/teachers"><i class="bi bi-people me-1"></i>
+                            Teachers</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/subjects"><i class="bi bi-book me-1"></i>
+                            Subjects</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/rooms"><i class="bi bi-building me-1"></i> Rooms</a>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="/timeslots"><i class="bi bi-clock me-1"></i> Time
+                            Slots</a></li>
+                    <li class="nav-item ms-lg-3">
+                        <button id="theme-toggle" class="btn" title="Toggle Theme">
+                            <i class="bi bi-sun"></i>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container pb-5">
+        <!-- ALERTS -->
+        <div th:if="${param.msg}" class="alert glass-card border-success mb-4 animate-fade-in" role="alert">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-check-circle-fill text-success fs-4 me-3"></i>
+                    <span th:text="${param.msg}" class="fw-medium"></span>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-5">
+            <div class="col-md-3">
+                <div class="glass-card stat-card" style="border-left-color: var(--accent);">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small text-uppercase fw-bold mb-1">Teachers</div>
+                            <h2 th:text="${teacherCount}" class="mb-0">0</h2>
+                        </div>
+                        <i class="bi bi-people-fill fs-1 text-accent opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="glass-card stat-card" style="border-left-color: #f472b6;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small text-uppercase fw-bold mb-1">Subjects</div>
+                            <h2 th:text="${subjectCount}" class="mb-0">0</h2>
+                        </div>
+                        <i class="bi bi-journal-text fs-1 opacity-25" style="color: #f472b6;"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="glass-card stat-card" style="border-left-color: #fbbf24;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small text-uppercase fw-bold mb-1">Rooms</div>
+                            <h2 th:text="${roomCount}" class="mb-0">0</h2>
+                        </div>
+                        <i class="bi bi-building-fill fs-1 opacity-25" style="color: #fbbf24;"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="glass-card stat-card" style="border-left-color: #4ade80;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small text-uppercase fw-bold mb-1">Assignments</div>
+                            <h2 th:text="${entryCount}" class="mb-0">0</h2>
+                        </div>
+                        <i class="bi bi-calendar-check fs-1 opacity-25" style="color: #4ade80;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="glass-card mb-4 mt-0 pt-3 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="mb-0">Current Assignments</h4>
+                        <div class="d-flex gap-2 align-items-center">
+                            <form action="/generate" method="get" class="d-flex gap-2">
+                                <select name="className" class="form-select form-select-sm" required>
+                                    <option value="CS-101">CS-101</option>
+                                    <option value="CS-102">CS-102</option>
+                                    <option value="CS-103">CS-103</option>
+                                    <option value="CS-201">CS-201</option>
+                                    <option value="CS-202">CS-202</option>
+                                </select>
+                                <button type="submit" class="vibrant-btn btn-sm text-nowrap"><i
+                                        class="bi bi-magic me-1"></i> Generate Weekly Schedule</button>
+                            </form>
+                            <a href="/clear" class="btn btn-sm btn-outline-danger border-0 opacity-75"
+                                onclick="return confirm('Clear entire timetable?')">
+                                <i class="bi bi-trash3"></i> Clear
+                            </a>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table text-white align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Class</th>
+                                    <th>Teacher</th>
+                                    <th>Subject</th>
+                                    <th>Room</th>
+                                    <th>Slot</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="e : ${entries}">
+                                    <td><span class="badge bg-primary bg-opacity-25 text-primary"
+                                            th:text="${e.className ?: 'N/A'}"></span></td>
+                                    <td th:text="${e.teacher?.name ?: 'No Teacher'}"></td>
+                                    <td><span class="text-accent" th:text="${e.subject?.name ?: 'No Subject'}"></span>
+                                    </td>
+                                    <td th:text="${e.room?.roomNumber ?: 'No Room'}"></td>
+                                    <td class="small text-muted" th:text="${e.timeSlot?.toString() ?: 'No Slot'}"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="glass-card h-100">
+                    <h4 class="mb-4">Quick View</h4>
+                    <div class="mb-4">
+                        <label class="form-label text-muted small fw-bold">SEARCH BY CLASS</label>
+                        <form action="/view/class" method="get" class="d-flex gap-2">
+                            <select name="className" class="form-select">
+                                <option value="CS-101">CS-101</option>
+                                <option value="CS-102">CS-102</option>
+                                <option value="CS-103">CS-103</option>
+                            </select>
+                            <button class="vibrant-btn-outline"><i class="bi bi-eye"></i></button>
+                        </form>
+                    </div>
+                    <div>
+                        <label class="form-label text-muted small fw-bold">SEARCH BY TEACHER</label>
+                        <form action="/view/teacher" method="get" class="d-flex gap-2">
+                            <select name="teacherId" class="form-select">
+                                <option th:each="t : ${teachers}" th:value="${t.id}" th:text="${t.name}"></option>
+                            </select>
+                            <button class="vibrant-btn-outline"><i class="bi bi-eye"></i></button>
+                        </form>
+                    </div>
+                    <hr class="my-4 opacity-10">
+                    <div class="info-box">
+                        <p class="small mb-0 text-center"><i class="bi bi-info-circle me-1 text-accent"></i> <strong>Pro
+                                Tip:</strong> Add all resources before generating a conflict-free schedule.</p>
+                    </div>
+                    <hr class="my-4 opacity-10">
+                    <div class="mb-3">
+                        <p class="text-muted small fw-bold mb-2">EMERGENCY ACTIONS</p>
+                        <a href="/repair" class="btn w-100 mb-2"
+                            style="background: linear-gradient(135deg, #f59e0b, #ef4444); border: none; color: white; border-radius: 10px; font-weight: 600; padding: 10px;">
+                            <i class="bi bi-tools me-2"></i>Repair Affected Slots
+                        </a>
+                        <p class="small text-muted text-center mt-1">Marks absent teachers/rooms and auto-reassigns
+                            their sessions.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/theme.js"></script>
+</body>
+
+</html>
