@@ -10,6 +10,7 @@ public class Subject {
     private String name;
     private String code;
     private int credits;
+    private int periodsPerWeek; // Number of periods to allocate per week
     private String type; // Theory, Lab, Integrated
 
     public Long getId() {
@@ -50,5 +51,13 @@ public class Subject {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public int getPeriodsPerWeek() {
+        return periodsPerWeek;
+    }
+
+    public void setPeriodsPerWeek(int periodsPerWeek) {
+        this.periodsPerWeek = periodsPerWeek;
     }
 }

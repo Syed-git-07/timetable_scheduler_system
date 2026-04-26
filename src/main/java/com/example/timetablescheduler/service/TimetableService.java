@@ -38,6 +38,41 @@ public class TimetableService {
         timetableRepository.deleteAll();
     }
 
+    public String substituteTeacher(Long absentTeacherId, Long substituteTeacherId) {
+        if (absentTeacherId.equals(substituteTeacherId)) {
+            return "Absent teacher and substitute teacher cannot be the same.";
+        }
+        
+        Teacher absentTeacher = teacherRepository.findById(absentTeacherId).orElse(null);
+        Teacher substituteTeacher = teacherRepository.findById(substituteTeacherId).orElse(null);
+        
+        if (absentTeacher == null || substituteTeacher == null) {
+            return "Invalid teacher selection.";
+        }
+
+        List<TimetableEntry> allEntries = timetableRepository.findAll();
+        int substitutionCount = 0;
+
+        for (TimetableEntry entry : allEntries) {
+            if (entry.getTeacher() != null && entry.getTeacher().getId().equals(absentTeacherId)) {
+                // Check if substitute teacher is already busy at this time slot
+                boolean isSubstituteBusy = allEntries.stream().anyMatch(e -> 
+                    e.getTeacher() != null && 
+                    e.getTeacher().getId().equals(substituteTeacherId) && 
+                    e.getTimeSlot() != null && 
+                    e.getTimeSlot().getId().equals(entry.getTimeSlot().getId())
+                );
+                
+                if (!isSubstituteBusy) {
+                    entry.setTeacher(substituteTeacher);
+                    timetableRepository.save(entry);
+                    substitutionCount++;
+                }
+            }
+        }
+        return "Substituted " + absentTeacher.getName() + " with " + substituteTeacher.getName() + " for " + substitutionCount + " periods.";
+    }
+
     // =========================================================
     // MULTI-STRATEGY REACTIVE REPAIR ALGORITHM
     // Flow: Event → Identify Conflicts → For each conflict:
@@ -312,43 +347,28 @@ public class TimetableService {
             boolean needsDoubleLab = false;
 
             String type = subject.getType() != null ? subject.getType() : "Theory";
-            int credits = subject.getCredits();
+            int totalPeriods = subject.getPeriodsPerWeek();
+            if (totalPeriods <= 0) totalPeriods = 1; // Fallback just in case
 
-            /*
-             * EXACT PERIOD ALLOCATION RULES (as specified):
-             *
-             * THEORY:
-             * credits → periods/week directly.
-             * 0 credits = 1 period (special case)
-             *
-             * LAB (2 credits):
-             * 4 lab periods total — first 2 MUST be continuous (back-to-back)
-             *
-             * INTEGRATED:
-             * 4 theory periods + 1 continuous 2-period lab session
-             */
             if (type.equalsIgnoreCase("Integrated")) {
-                theoryPeriods = 4;
-                labPeriods = 2;
-                needsDoubleLab = true; // the 2 lab periods must be continuous
+                labPeriods = Math.min(2, totalPeriods);
+                theoryPeriods = totalPeriods - labPeriods;
             } else if (type.equalsIgnoreCase("Lab")) {
-                labPeriods = 4;
-                needsDoubleLab = true; // first pair must be continuous
+                labPeriods = totalPeriods;
             } else {
-                // Theory: credits = periods/week; 0 credits = 1 period
-                theoryPeriods = (credits <= 0) ? 1 : credits;
+                theoryPeriods = totalPeriods;
             }
 
-            // Schedule the continuous lab block first (highest constraint, must go first)
-            if (needsDoubleLab) {
+            int doubleBlocks = labPeriods / 2;
+            int remainingLabSingles = labPeriods % 2;
+
+            for (int i = 0; i < doubleBlocks; i++) {
                 if (scheduleContinuous(className, teacher, subject, rooms, timeSlots, 2)) {
                     generatedCount += 2;
-                    labPeriods -= 2; // deduct the 2 already placed
                 }
             }
 
-            // Schedule any remaining lab periods as singles
-            for (int i = 0; i < labPeriods; i++) {
+            for (int i = 0; i < remainingLabSingles; i++) {
                 if (scheduleSingle(className, teacher, subject, rooms, timeSlots)) {
                     generatedCount++;
                 }
@@ -366,9 +386,35 @@ public class TimetableService {
 
     private boolean scheduleSingle(String className, Teacher teacher, Subject subject, List<Room> rooms,
             List<TimeSlot> timeSlots) {
-        for (TimeSlot slot : timeSlots) {
-            if (isClassBusy(className, slot))
-                continue;
+        
+        List<TimetableEntry> currentEntries = timetableRepository.findByClassName(className);
+        
+        // Shuffle timeSlots to randomly distribute the subjects across the week
+        List<TimeSlot> shuffledSlots = new java.util.ArrayList<>(timeSlots);
+        java.util.Collections.shuffle(shuffledSlots);
+        
+        // Pass 1: Try to find a day where this subject is NOT already scheduled
+        for (TimeSlot slot : shuffledSlots) {
+            boolean subjectAlreadyOnThisDay = currentEntries.stream()
+                .anyMatch(e -> e.getSubject() != null && e.getSubject().getId().equals(subject.getId()) 
+                               && e.getTimeSlot() != null 
+                               && e.getTimeSlot().getDayOfWeek().equals(slot.getDayOfWeek()));
+                               
+            if (subjectAlreadyOnThisDay) continue;
+
+            if (isClassBusy(className, slot)) continue;
+
+            for (Room room : rooms) {
+                if (!isConflict(teacher, room, slot)) {
+                    saveEntry(className, teacher, subject, room, slot);
+                    return true;
+                }
+            }
+        }
+        
+        // Pass 2: Fallback (allow multiple periods on the same day if we couldn't spread it)
+        for (TimeSlot slot : shuffledSlots) {
+            if (isClassBusy(className, slot)) continue;
             for (Room room : rooms) {
                 if (!isConflict(teacher, room, slot)) {
                     saveEntry(className, teacher, subject, room, slot);
@@ -381,12 +427,39 @@ public class TimetableService {
 
     private boolean scheduleContinuous(String className, Teacher teacher, Subject subject, List<Room> rooms,
             List<TimeSlot> timeSlots, int count) {
-        // timeSlots is already sorted by Day and orderIndex
+        List<TimetableEntry> currentEntries = timetableRepository.findByClassName(className);
+
+        // Pass 1: Try to find a day where this subject is NOT already scheduled
         for (int i = 0; i < timeSlots.size() - 1; i++) {
             TimeSlot s1 = timeSlots.get(i);
             TimeSlot s2 = timeSlots.get(i + 1);
 
-            // Sequential check
+            if (s1.getDayOfWeek().equals(s2.getDayOfWeek()) &&
+                    s2.getOrderIndex() == s1.getOrderIndex() + 1 &&
+                    !isClassBusy(className, s1) && !isClassBusy(className, s2)) {
+                
+                boolean subjectAlreadyOnThisDay = currentEntries.stream()
+                    .anyMatch(e -> e.getSubject() != null && e.getSubject().getId().equals(subject.getId()) 
+                                   && e.getTimeSlot() != null 
+                                   && e.getTimeSlot().getDayOfWeek().equals(s1.getDayOfWeek()));
+                
+                if (subjectAlreadyOnThisDay) continue;
+
+                for (Room room : rooms) {
+                    if (!isConflict(teacher, room, s1) && !isConflict(teacher, room, s2)) {
+                        saveEntry(className, teacher, subject, room, s1);
+                        saveEntry(className, teacher, subject, room, s2);
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // Pass 2: Fallback
+        for (int i = 0; i < timeSlots.size() - 1; i++) {
+            TimeSlot s1 = timeSlots.get(i);
+            TimeSlot s2 = timeSlots.get(i + 1);
+
             if (s1.getDayOfWeek().equals(s2.getDayOfWeek()) &&
                     s2.getOrderIndex() == s1.getOrderIndex() + 1 &&
                     !isClassBusy(className, s1) && !isClassBusy(className, s2)) {

@@ -36,6 +36,9 @@
                             <i class="bi bi-sun"></i>
                         </button>
                     </li>
+                    <li class="nav-item ms-lg-2">
+                        <a href="/logout" class="btn btn-outline-danger btn-sm rounded-pill px-3"><i class="bi bi-box-arrow-right me-1"></i> Logout</a>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -56,10 +59,15 @@
                             <label class="form-label text-muted small fw-bold">SUBJECT CODE</label>
                             <input type="text" th:field="*{code}" class="form-control" placeholder="CS201" required>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-bold">CREDITS</label>
-                            <input type="number" th:field="*{credits}" class="form-control" placeholder="e.g. 3" min="0"
-                                max="6" required>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label text-muted small fw-bold">CREDITS</label>
+                                <input type="number" th:field="*{credits}" class="form-control" placeholder="e.g. 3" min="0" max="10" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label text-muted small fw-bold">PERIODS/WEEK</label>
+                                <input type="number" th:field="*{periodsPerWeek}" class="form-control" placeholder="e.g. 2" min="1" max="15" required>
+                            </div>
                         </div>
                         <div class="mb-4">
                             <label class="form-label text-muted small fw-bold">SUBJECT TYPE</label>
@@ -71,12 +79,9 @@
                             </select>
                             <div class="small text-muted mt-2 p-2"
                                 style="background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(255,255,255,0.07)">
-                                <div><i class="bi bi-dot text-accent"></i><strong>Theory:</strong> credits =
-                                    periods/week</div>
-                                <div><i class="bi bi-dot text-warning"></i><strong>Lab (2 cr):</strong> 4 periods (2
-                                    continuous)</div>
-                                <div><i class="bi bi-dot text-success"></i><strong>Integrated:</strong> 4 theory + 2
-                                    continuous lab</div>
+                                <div><i class="bi bi-dot text-accent"></i><strong>Theory:</strong> Custom periods/week</div>
+                                <div><i class="bi bi-dot text-warning"></i><strong>Lab:</strong> Allocates back-to-back periods</div>
+                                <div><i class="bi bi-dot text-success"></i><strong>Integrated:</strong> Mix of Theory and Lab logic</div>
                             </div>
                         </div>
                         <button type="submit" class="vibrant-btn w-100">Add Subject <i
@@ -95,6 +100,7 @@
                                     <th>Name</th>
                                     <th>Type</th>
                                     <th>Credits</th>
+                                    <th>Periods/Wk</th>
                                     <th class="text-end">Actions</th>
                                 </tr>
                             </thead>
@@ -110,6 +116,10 @@
                                     <td>
                                         <span class="badge bg-white bg-opacity-5 text-muted"
                                             th:text="${s.credits} + ' cr'"></span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary"
+                                            th:text="${s.periodsPerWeek}"></span>
                                     </td>
                                     <td class="text-end">
                                         <a th:href="@{/subjects/delete/{id}(id=${s.id})}"
