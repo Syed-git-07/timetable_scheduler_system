@@ -2,6 +2,7 @@ package com.example.timetablescheduler.controller;
 
 import com.example.timetablescheduler.model.AppUser;
 import com.example.timetablescheduler.repository.AppUserRepository;
+import com.example.timetablescheduler.util.PasswordUtils;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -48,7 +49,7 @@ public class AuthController {
         
         Optional<AppUser> userOpt = appUserRepository.findByUsername(username);
         
-        if (userOpt.isPresent() && userOpt.get().getPassword().equals(password)) {
+        if (userOpt.isPresent() && userOpt.get().getPassword().equals(PasswordUtils.hashPassword(password))) {
             AppUser user = userOpt.get();
             session.setAttribute("user", user.getUsername());
             session.setAttribute("role", user.getRole());
@@ -76,19 +77,16 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public String handleForgotPassword(@RequestParam("username") String username, RedirectAttributes redirectAttributes) {
+    public String handleForgotPassword(@RequestParam("username") String username, 
+                                     @RequestParam("newPassword") String newPassword,
+                                     RedirectAttributes redirectAttributes) {
         Optional<AppUser> userOpt = appUserRepository.findByUsername(username);
         if (userOpt.isPresent()) {
-            // Mocking email sending
-            String token = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
-            // In a real application, you would send this token to the user's email and store it.
-            // For now, we will just show it in the flash message so they can "verify" or use it to login.
-            // Let's just reset the password to this token for simplicity in the demo.
             AppUser user = userOpt.get();
-            user.setPassword(token);
+            user.setPassword(PasswordUtils.hashPassword(newPassword));
             appUserRepository.save(user);
             
-            redirectAttributes.addFlashAttribute("success", "Password reset successful! Your new temporary password is: " + token);
+            redirectAttributes.addFlashAttribute("success", "Password successfully changed for user: " + username);
             return "redirect:/login";
         }
         redirectAttributes.addFlashAttribute("error", "Username not found.");

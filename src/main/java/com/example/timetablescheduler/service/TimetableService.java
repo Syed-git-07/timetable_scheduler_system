@@ -115,7 +115,7 @@ public class TimetableService {
                 for (TimeSlot freeSlot : allSlots) {
                     if (freeSlot.getId().equals(conflict.getTimeSlot() != null ? conflict.getTimeSlot().getId() : -1))
                         continue;
-                    if (isClassBusy(conflict.getClassName(), freeSlot))
+                    if (isClassBusy(conflict.getClassName(), freeSlot, 1))
                         continue;
                     if (conflict.getTeacher() != null && conflict.getTeacher().isAvailable()
                             && !existsByTeacherAndSlot(conflict.getTeacher(), freeSlot)
