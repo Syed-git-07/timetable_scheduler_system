@@ -21,6 +21,7 @@
     --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
     --nav-text: #ffffff;
     --info-bg: rgba(255, 255, 255, 0.05);
+    --modal-bg: #1e293b;
 }
 
 [data-theme="light"] {
@@ -39,6 +40,7 @@
     --table-header-bg: rgba(15, 23, 42, 0.04);
     --card-shadow: 0 10px 40px rgba(15, 23, 42, 0.08);
     --nav-text: #0f172a;
+    --modal-bg: #ffffff;
 }
 
 body {
@@ -328,3 +330,230 @@ body {
     width: 100%;
     font-weight: 600;
 }
+
+/* ─── DISCREPANCY FIXES ───────────────────────────────────────────────── */
+
+/* 1. Badges that use bg-white look invisible in dark mode → replace with theme-aware style */
+.badge.bg-white {
+    background-color: var(--card-bg) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--glass-border) !important;
+}
+
+/* 2. Subjects page: Credits badge (bg-white bg-opacity-5 text-muted) is too faint in dark */
+.badge.bg-white.bg-opacity-5 {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    color: var(--text-muted) !important;
+    border: 1px solid var(--glass-border) !important;
+}
+
+[data-theme="light"] .badge.bg-white.bg-opacity-5 {
+    background-color: rgba(0, 0, 0, 0.04) !important;
+    color: #64748b !important;
+    border: 1px solid rgba(0,0,0,0.1) !important;
+}
+
+/* 3. Rooms TYPE badge (bg-white bg-opacity-5 border-white border-opacity-10) invisible in dark */
+.badge.border-white.border-opacity-10 {
+    border-color: var(--glass-border) !important;
+    color: var(--text-main) !important;
+    background-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+[data-theme="light"] .badge.border-white.border-opacity-10 {
+    background-color: rgba(0, 0, 0, 0.04) !important;
+    color: #334155 !important;
+    border-color: rgba(0,0,0,0.12) !important;
+}
+
+/* 4. Table text — ensure all table td text uses theme color, not stuck on white */
+.table.text-white {
+    color: var(--text-main) !important;
+}
+
+.table.text-white tbody tr td,
+.table.text-white tbody tr th {
+    color: var(--text-main) !important;
+}
+
+/* 5. Light theme — table on light background must show dark text, not white */
+[data-theme="light"] .table tbody td,
+[data-theme="light"] .table tbody th {
+    color: #0f172a !important;
+}
+
+[data-theme="light"] .table thead th {
+    color: #0f172a !important;
+}
+
+/* 6. Text-accent for light mode */
+.text-accent {
+    color: var(--accent);
+}
+
+[data-theme="light"] .text-accent {
+    color: var(--accent) !important;
+}
+
+/* 7. Toggle switch visibility — form-check-input in tables must respect theme */
+.form-check-input {
+    background-color: rgba(255,255,255,0.1) !important;
+    border-color: var(--glass-border) !important;
+}
+
+.form-check-input:checked {
+    background-color: var(--success) !important;
+    border-color: var(--success) !important;
+}
+
+[data-theme="light"] .form-check-input {
+    background-color: rgba(0,0,0,0.08) !important;
+    border-color: rgba(0,0,0,0.15) !important;
+}
+
+[data-theme="light"] .form-check-input:checked {
+    background-color: #10b981 !important;
+    border-color: #10b981 !important;
+}
+
+/* 8. Timeslot SEQUENCE badge — any badge inside table that has no explicit color */
+.table td .badge:not([class*="bg-"]),
+.table td .badge.bg-opacity-10 {
+    background-color: rgba(79, 70, 229, 0.12) !important;
+    color: #818cf8 !important;
+    border: 1px solid rgba(79, 70, 229, 0.25) !important;
+}
+
+[data-theme="light"] .table td .badge:not([class*="bg-"]),
+[data-theme="light"] .table td .badge.bg-opacity-10 {
+    background-color: rgba(79, 70, 229, 0.08) !important;
+    color: #4f46e5 !important;
+    border: 1px solid rgba(79, 70, 229, 0.2) !important;
+}
+
+/* 9. btn-outline-primary/danger in light mode — must not be too faint */
+[data-theme="light"] .btn-outline-primary {
+    color: #4f46e5 !important;
+    border-color: #4f46e5 !important;
+}
+
+[data-theme="light"] .btn-outline-danger {
+    color: #ef4444 !important;
+    border-color: #ef4444 !important;
+}
+
+/* 10. Navbar brand text shows SCHEDULER in white — fix for light mode */
+[data-theme="light"] .navbar-brand span.text-white {
+    color: #64748b !important;
+    -webkit-text-fill-color: #64748b !important;
+}
+
+/* 11. form-control / form-select in light mode: keep clean white bg */
+[data-theme="light"] .form-control,
+[data-theme="light"] .form-select {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: rgba(0,0,0,0.12) !important;
+}
+
+/* 12. Modal content — respect theme for modal dialogs */
+.modal-content {
+    background: var(--card-bg) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--glass-border) !important;
+}
+
+.modal-header, .modal-footer {
+    border-color: var(--glass-border) !important;
+}
+
+[data-theme="light"] .modal-content {
+    background: #ffffff !important;
+    color: #0f172a !important;
+}
+
+/* 13. btn-close in light mode modal */
+[data-theme="light"] .btn-close.btn-close-white {
+    filter: invert(1);
+}
+
+/* ─── THEME-AWARE MODAL CLASSES ──────────────────────────────────────────
+   Use these instead of hardcoded style="background-color:#212529"
+   on ALL modal-content divs so they adapt to light/dark automatically.
+────────────────────────────────────────────────────────────────────────── */
+.theme-modal {
+    background: var(--modal-bg) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4) !important;
+    backdrop-filter: blur(12px);
+}
+
+.theme-modal-header {
+    border-bottom: 1px solid var(--glass-border) !important;
+    padding: 1.25rem 1.5rem !important;
+}
+
+.theme-modal-footer {
+    border-top: 1px solid var(--glass-border) !important;
+    padding: 1rem 1.5rem !important;
+}
+
+/* Close button adapts to theme */
+.theme-btn-close {
+    filter: var(--close-btn-filter, invert(1));
+}
+[data-theme="light"] .theme-btn-close {
+    filter: invert(0);
+}
+
+/* ─── SUBJECT BADGE (Teacher table) ──────────────────────────────────── */
+/* Clearly visible in BOTH light and dark themes */
+.subject-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(79, 70, 229, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(79, 70, 229, 0.3);
+}
+
+[data-theme="light"] .subject-badge {
+    background: rgba(79, 70, 229, 0.1);
+    color: #4f46e5;
+    border: 1px solid rgba(79, 70, 229, 0.25);
+}
+
+/* ─── PERIOD PILL (Sequence / Credits / Periods-per-week badges) ──────── */
+.period-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-muted);
+    border: 1px solid var(--glass-border);
+}
+
+.period-pill.accent {
+    background: rgba(79, 70, 229, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(79, 70, 229, 0.3);
+}
+
+[data-theme="light"] .period-pill {
+    background: rgba(0, 0, 0, 0.05);
+    color: #64748b;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .period-pill.accent {
+    background: rgba(79, 70, 229, 0.08);
+    color: #4f46e5;
+    border: 1px solid rgba(79, 70, 229, 0.2);
+}
+
