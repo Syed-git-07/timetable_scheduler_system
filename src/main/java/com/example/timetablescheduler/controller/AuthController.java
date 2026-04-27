@@ -43,7 +43,7 @@ public class AuthController {
     @PostMapping("/login")
     public String login(
             @RequestParam("username") String username,
-            @RequestParam("password") String password,
+            @RequestParam("login_key") String password,
             HttpSession session,
             RedirectAttributes redirectAttributes) {
         
