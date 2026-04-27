@@ -76,8 +76,8 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public String handleForgotPassword(@RequestParam("email") String email, RedirectAttributes redirectAttributes) {
-        Optional<AppUser> userOpt = appUserRepository.findByEmail(email);
+    public String handleForgotPassword(@RequestParam("username") String username, RedirectAttributes redirectAttributes) {
+        Optional<AppUser> userOpt = appUserRepository.findByUsername(username);
         if (userOpt.isPresent()) {
             // Mocking email sending
             String token = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
@@ -88,10 +88,10 @@ public class AuthController {
             user.setPassword(token);
             appUserRepository.save(user);
             
-            redirectAttributes.addFlashAttribute("success", "A temporary password has been sent to your email. (Mock Email: New Password is " + token + ")");
+            redirectAttributes.addFlashAttribute("success", "Password reset successful! Your new temporary password is: " + token);
             return "redirect:/login";
         }
-        redirectAttributes.addFlashAttribute("error", "Email not found.");
+        redirectAttributes.addFlashAttribute("error", "Username not found.");
         return "redirect:/forgot-password";
     }
 }

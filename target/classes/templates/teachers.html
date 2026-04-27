@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 
-<body class="animate-fade-in">
+<body data-theme="dark">
     <nav class="navbar navbar-expand-lg glass-navbar mb-5">
         <div class="container">
             <a class="navbar-brand" href="/">TIMETABLE <span class="text-white opacity-50">SCHEDULER</span></a>
@@ -46,37 +46,14 @@
 
     <div class="container pb-5">
         <div class="row g-4">
-            <div class="col-lg-4">
+            <div class="col-lg-12">
                 <div class="glass-card">
-                    <h4 class="mb-4">Add New Teacher</h4>
-                    <form th:action="@{/teachers/add}" th:object="${teacher}" method="post">
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-bold">FULL NAME</label>
-                            <input type="text" th:field="*{name}" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-bold">DEPARTMENT</label>
-                            <input type="text" th:field="*{department}" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-bold">HANDLED SUBJECT</label>
-                            <select name="subjectId" class="form-select" required>
-                                <option value="">Select Subject</option>
-                                <option th:each="s : ${subjects}" th:value="${s.id}" th:text="${s.name}"></option>
-                            </select>
-                        </div>
-                        <div class="mb-4">
-                            <label class="form-label text-muted small fw-bold">EMAIL ADDRESS</label>
-                            <input type="email" th:field="*{email}" class="form-control" required>
-                        </div>
-                        <button type="submit" class="vibrant-btn w-100">Add Teacher <i
-                                class="bi bi-plus-lg ms-1"></i></button>
-                    </form>
-                </div>
-            </div>
-            <div class="col-lg-8">
-                <div class="glass-card">
-                    <h4 class="mb-4">Teacher Directory</h4>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="mb-0">Teacher Directory</h4>
+                        <button type="button" class="vibrant-btn py-2 px-3" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
+                            <i class="bi bi-plus-lg me-1"></i> Add Teacher
+                        </button>
+                    </div>
                     <div class="table-responsive">
                         <table class="table text-white align-middle">
                             <thead>
@@ -104,8 +81,11 @@
                                     </td>
                                     <td class="text-muted" th:text="${t.email}"></td>
                                     <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary border-0 opacity-75" data-bs-toggle="modal" th:data-bs-target="'#editTeacherModal' + ${t.id}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
                                         <a th:href="@{/teachers/delete/{id}(id=${t.id})}"
-                                            class="btn btn-sm btn-outline-danger border-0"><i
+                                            class="btn btn-sm btn-outline-danger border-0 opacity-50"><i
                                                 class="bi bi-trash"></i></a>
                                     </td>
                                 </tr>
@@ -116,6 +96,89 @@
             </div>
         </div>
     </div>
+
+    <!-- Add Teacher Modal -->
+    <div class="modal fade text-start" id="addTeacherModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" style="background-color: #212529; color: #f8f9fa; border: 1px solid #495057; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <div class="modal-header border-bottom border-secondary">
+                    <h5 class="modal-title fw-bold">Add New Teacher</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form th:action="@{/teachers/add}" method="post">
+                    <div class="modal-body py-4">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-light">FULL NAME</label>
+                            <input type="text" name="name" class="form-control" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-light">DEPARTMENT</label>
+                            <input type="text" name="department" class="form-control" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-light">HANDLED SUBJECT</label>
+                            <select name="subjectId" class="form-select" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" required>
+                                <option value="">Select Subject</option>
+                                <option th:each="s : ${subjects}" th:value="${s.id}" th:text="${s.name}"></option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-light">EMAIL ADDRESS</label>
+                            <input type="email" name="email" class="form-control" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top border-secondary">
+                        <button type="button" class="btn btn-outline-light opacity-50" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="vibrant-btn px-4">Add Teacher</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Teacher Modals -->
+    <th:block th:each="t : ${teachers}">
+        <div class="modal fade text-start" th:id="'editTeacherModal' + ${t.id}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content" style="background-color: #212529; color: #f8f9fa; border: 1px solid #495057; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    <div class="modal-header border-bottom border-secondary">
+                        <h5 class="modal-title fw-bold">Edit Teacher</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form th:action="@{/teachers/edit}" method="post">
+                        <input type="hidden" name="id" th:value="${t.id}">
+                        <input type="hidden" name="available" th:value="${t.available}">
+                        <div class="modal-body py-4">
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">FULL NAME</label>
+                                <input type="text" name="name" th:value="${t.name}" class="form-control" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">DEPARTMENT</label>
+                                <input type="text" name="department" th:value="${t.department}" class="form-control" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">HANDLED SUBJECT</label>
+                                <select name="subjectId" class="form-select" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" required>
+                                    <option value="">Select Subject</option>
+                                    <option th:each="s : ${subjects}" th:value="${s.id}" th:text="${s.name}" th:selected="${t.handledSubject != null and t.handledSubject.id == s.id}"></option>
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label small fw-bold">EMAIL ADDRESS</label>
+                                <input type="email" name="email" th:value="${t.email}" class="form-control" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" required>
+                            </div>
+                        </div>
+                        <div class="modal-footer border-top border-secondary">
+                            <button type="button" class="btn btn-outline-light opacity-50" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="vibrant-btn px-4">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </th:block>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/js/theme.js"></script>
 </body>

@@ -27,6 +27,12 @@ public class SubjectController {
         return "redirect:/subjects";
     }
 
+    @PostMapping("/edit")
+    public String editSubject(@ModelAttribute Subject subject) {
+        subjectRepository.save(subject);
+        return "redirect:/subjects";
+    }
+
     @GetMapping("/delete/{id}")
     public String deleteSubject(@PathVariable Long id) {
         subjectRepository.deleteById(id);

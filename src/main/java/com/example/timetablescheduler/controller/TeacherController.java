@@ -40,6 +40,20 @@ public class TeacherController {
         return "redirect:/teachers";
     }
 
+    @PostMapping("/edit")
+    public String editTeacher(@ModelAttribute Teacher teacher,
+            @RequestParam(name = "subjectId", required = false) String subjectId) {
+        if (subjectId != null && !subjectId.trim().isEmpty()) {
+            try {
+                Long id = Long.parseLong(subjectId);
+                subjectRepository.findById(id).ifPresent(teacher::setHandledSubject);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        teacherRepository.save(teacher);
+        return "redirect:/teachers";
+    }
+
     @GetMapping("/toggle/{id}")
     public String toggleTeacher(@PathVariable Long id) {
         teacherRepository.findById(id).ifPresent(t -> {

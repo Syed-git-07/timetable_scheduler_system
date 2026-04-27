@@ -312,7 +312,7 @@ public class TimetableService {
      * Lab → 4 periods (first 2 back-to-back, then 2 single)
      * Integrated → 4 theory + 2 continuous lab = 6 periods
      */
-    public String generateTimetable(String className) {
+    public String generateTimetable(String className, int studentCount) {
         // Auto-seed slots if none exist
         if (timeSlotRepository.count() == 0) {
             autoSeedTimeslots();
@@ -324,14 +324,24 @@ public class TimetableService {
 
         List<Teacher> teachers = teacherRepository.findAll()
                 .stream().filter(Teacher::isAvailable).toList();
-        List<Room> rooms = roomRepository.findAll()
+        List<Room> allRooms = roomRepository.findAll()
                 .stream().filter(Room::isAvailable).toList();
         List<TimeSlot> timeSlots = timeSlotRepository.findAllByOrderByDayOfWeekAscOrderIndexAsc();
+
+        int maxRoomCap = allRooms.stream().mapToInt(Room::getCapacity).max().orElse(0);
+        int sectionsRequired = 1;
+        if (studentCount > maxRoomCap && maxRoomCap > 0) {
+            sectionsRequired = (int) Math.ceil((double) studentCount / maxRoomCap);
+        }
+        int requiredCapacity = studentCount / sectionsRequired;
+
+        List<Room> rooms = allRooms.stream()
+                .filter(r -> r.getCapacity() >= requiredCapacity).toList();
 
         if (teachers.isEmpty())
             return "No available teachers found. Add teachers with subjects.";
         if (rooms.isEmpty())
-            return "No available rooms found. Add rooms first.";
+            return "No available rooms found for capacity " + requiredCapacity + ".";
         if (timeSlots.isEmpty())
             return "No time slots found. Use 'Seed 8-Period Day' on the Time Slots page.";
 
@@ -363,20 +373,20 @@ public class TimetableService {
             int remainingLabSingles = labPeriods % 2;
 
             for (int i = 0; i < doubleBlocks; i++) {
-                if (scheduleContinuous(className, teacher, subject, rooms, timeSlots, 2)) {
+                if (scheduleContinuous(className, teacher, subject, rooms, timeSlots, true, sectionsRequired)) {
                     generatedCount += 2;
                 }
             }
 
             for (int i = 0; i < remainingLabSingles; i++) {
-                if (scheduleSingle(className, teacher, subject, rooms, timeSlots)) {
+                if (scheduleSingle(className, teacher, subject, rooms, timeSlots, true, sectionsRequired)) {
                     generatedCount++;
                 }
             }
 
             // Schedule theory periods
             for (int i = 0; i < theoryPeriods; i++) {
-                if (scheduleSingle(className, teacher, subject, rooms, timeSlots)) {
+                if (scheduleSingle(className, teacher, subject, rooms, timeSlots, false, sectionsRequired)) {
                     generatedCount++;
                 }
             }
@@ -385,7 +395,7 @@ public class TimetableService {
     }
 
     private boolean scheduleSingle(String className, Teacher teacher, Subject subject, List<Room> rooms,
-            List<TimeSlot> timeSlots) {
+            List<TimeSlot> timeSlots, boolean isLabPeriod, int sectionsRequired) {
         
         List<TimetableEntry> currentEntries = timetableRepository.findByClassName(className);
         
@@ -402,9 +412,20 @@ public class TimetableService {
                                
             if (subjectAlreadyOnThisDay) continue;
 
-            if (isClassBusy(className, slot)) continue;
+            if (isClassBusy(className, slot, sectionsRequired)) continue;
+
+            if (isLabPeriod) {
+                long labsOnDay = currentEntries.stream()
+                    .filter(e -> e.getTimeSlot() != null && e.getTimeSlot().getDayOfWeek().equals(slot.getDayOfWeek()))
+                    .filter(e -> e.getRoom() != null && "Lab".equalsIgnoreCase(e.getRoom().getType()))
+                    .count();
+                if (labsOnDay >= 4 * sectionsRequired) continue; // Enforce max 4 lab periods per day
+            }
 
             for (Room room : rooms) {
+                if (isLabPeriod && (room.getType() == null || !room.getType().equalsIgnoreCase("Lab"))) continue;
+                if (!isLabPeriod && room.getType() != null && room.getType().equalsIgnoreCase("Lab")) continue;
+
                 if (!isConflict(teacher, room, slot)) {
                     saveEntry(className, teacher, subject, room, slot);
                     return true;
@@ -414,8 +435,20 @@ public class TimetableService {
         
         // Pass 2: Fallback (allow multiple periods on the same day if we couldn't spread it)
         for (TimeSlot slot : shuffledSlots) {
-            if (isClassBusy(className, slot)) continue;
+            if (isClassBusy(className, slot, sectionsRequired)) continue;
+
+            if (isLabPeriod) {
+                long labsOnDay = currentEntries.stream()
+                    .filter(e -> e.getTimeSlot() != null && e.getTimeSlot().getDayOfWeek().equals(slot.getDayOfWeek()))
+                    .filter(e -> e.getRoom() != null && "Lab".equalsIgnoreCase(e.getRoom().getType()))
+                    .count();
+                if (labsOnDay >= 6 * sectionsRequired) continue; // Max 6 labs as absolute fallback
+            }
+
             for (Room room : rooms) {
+                if (isLabPeriod && (room.getType() == null || !room.getType().equalsIgnoreCase("Lab"))) continue;
+                if (!isLabPeriod && room.getType() != null && room.getType().equalsIgnoreCase("Lab")) continue;
+
                 if (!isConflict(teacher, room, slot)) {
                     saveEntry(className, teacher, subject, room, slot);
                     return true;
@@ -426,49 +459,61 @@ public class TimetableService {
     }
 
     private boolean scheduleContinuous(String className, Teacher teacher, Subject subject, List<Room> rooms,
-            List<TimeSlot> timeSlots, int count) {
-        List<TimetableEntry> currentEntries = timetableRepository.findByClassName(className);
+            List<TimeSlot> timeSlots, boolean isLabPeriod, int sectionsRequired) {
+        
+        // 3 Passes to enforce strict constraints, then loosen them if necessary.
+        for (int pass = 1; pass <= 3; pass++) {
+            List<TimetableEntry> currentEntries = timetableRepository.findByClassName(className);
+            
+            for (int i = 0; i < timeSlots.size() - 1; i++) {
+                TimeSlot s1 = timeSlots.get(i);
+                TimeSlot s2 = timeSlots.get(i + 1);
 
-        // Pass 1: Try to find a day where this subject is NOT already scheduled
-        for (int i = 0; i < timeSlots.size() - 1; i++) {
-            TimeSlot s1 = timeSlots.get(i);
-            TimeSlot s2 = timeSlots.get(i + 1);
+                if (s1.getDayOfWeek().equals(s2.getDayOfWeek()) &&
+                        s2.getOrderIndex() == s1.getOrderIndex() + 1 &&
+                        !isClassBusy(className, s1, sectionsRequired) && !isClassBusy(className, s2, sectionsRequired)) {
+                    
+                    boolean subjectAlreadyOnThisDay = currentEntries.stream()
+                        .anyMatch(e -> e.getSubject() != null && e.getSubject().getId().equals(subject.getId()) 
+                                       && e.getTimeSlot() != null 
+                                       && e.getTimeSlot().getDayOfWeek().equals(s1.getDayOfWeek()));
+                    
+                    if (pass == 1 && subjectAlreadyOnThisDay) continue; // Spread subjects
 
-            if (s1.getDayOfWeek().equals(s2.getDayOfWeek()) &&
-                    s2.getOrderIndex() == s1.getOrderIndex() + 1 &&
-                    !isClassBusy(className, s1) && !isClassBusy(className, s2)) {
-                
-                boolean subjectAlreadyOnThisDay = currentEntries.stream()
-                    .anyMatch(e -> e.getSubject() != null && e.getSubject().getId().equals(subject.getId()) 
-                                   && e.getTimeSlot() != null 
-                                   && e.getTimeSlot().getDayOfWeek().equals(s1.getDayOfWeek()));
-                
-                if (subjectAlreadyOnThisDay) continue;
+                    if (isLabPeriod) {
+                        long labsOnDay = currentEntries.stream()
+                            .filter(e -> e.getTimeSlot() != null && e.getTimeSlot().getDayOfWeek().equals(s1.getDayOfWeek()))
+                            .filter(e -> e.getRoom() != null && "Lab".equalsIgnoreCase(e.getRoom().getType()))
+                            .count();
+                        
+                        if (pass <= 2 && labsOnDay >= 4 * sectionsRequired) continue; // Max 4 labs in Pass 1 & 2
+                        if (pass == 3 && labsOnDay >= 6 * sectionsRequired) continue; // Max 6 labs in Pass 3
 
-                for (Room room : rooms) {
-                    if (!isConflict(teacher, room, s1) && !isConflict(teacher, room, s2)) {
-                        saveEntry(className, teacher, subject, room, s1);
-                        saveEntry(className, teacher, subject, room, s2);
-                        return true;
+                        // Prevent adjacent labs logic
+                        if (pass <= 2) {
+                            TimeSlot s0 = (i > 0) ? timeSlots.get(i - 1) : null;
+                            TimeSlot s3 = (i < timeSlots.size() - 2) ? timeSlots.get(i + 2) : null;
+                            
+                            boolean adjacentLab = false;
+                            if (s0 != null && s0.getDayOfWeek().equals(s1.getDayOfWeek())) {
+                                adjacentLab |= currentEntries.stream().anyMatch(e -> e.getTimeSlot() != null && e.getTimeSlot().getId().equals(s0.getId()) && e.getRoom() != null && "Lab".equalsIgnoreCase(e.getRoom().getType()));
+                            }
+                            if (s3 != null && s3.getDayOfWeek().equals(s1.getDayOfWeek())) {
+                                adjacentLab |= currentEntries.stream().anyMatch(e -> e.getTimeSlot() != null && e.getTimeSlot().getId().equals(s3.getId()) && e.getRoom() != null && "Lab".equalsIgnoreCase(e.getRoom().getType()));
+                            }
+                            if (adjacentLab) continue; // Try to separate labs with theory periods
+                        }
                     }
-                }
-            }
-        }
 
-        // Pass 2: Fallback
-        for (int i = 0; i < timeSlots.size() - 1; i++) {
-            TimeSlot s1 = timeSlots.get(i);
-            TimeSlot s2 = timeSlots.get(i + 1);
+                    for (Room room : rooms) {
+                        if (isLabPeriod && (room.getType() == null || !room.getType().equalsIgnoreCase("Lab"))) continue;
+                        if (!isLabPeriod && room.getType() != null && room.getType().equalsIgnoreCase("Lab")) continue;
 
-            if (s1.getDayOfWeek().equals(s2.getDayOfWeek()) &&
-                    s2.getOrderIndex() == s1.getOrderIndex() + 1 &&
-                    !isClassBusy(className, s1) && !isClassBusy(className, s2)) {
-
-                for (Room room : rooms) {
-                    if (!isConflict(teacher, room, s1) && !isConflict(teacher, room, s2)) {
-                        saveEntry(className, teacher, subject, room, s1);
-                        saveEntry(className, teacher, subject, room, s2);
-                        return true;
+                        if (!isConflict(teacher, room, s1) && !isConflict(teacher, room, s2)) {
+                            saveEntry(className, teacher, subject, room, s1);
+                            saveEntry(className, teacher, subject, room, s2);
+                            return true;
+                        }
                     }
                 }
             }
@@ -476,8 +521,8 @@ public class TimetableService {
         return false;
     }
 
-    private boolean isClassBusy(String className, TimeSlot slot) {
-        return !timetableRepository.findByClassNameAndTimeSlot_Id(className, slot.getId()).isEmpty();
+    private boolean isClassBusy(String className, TimeSlot slot, int maxSections) {
+        return timetableRepository.findByClassNameAndTimeSlot_Id(className, slot.getId()).size() >= maxSections;
     }
 
     private void saveEntry(String className, Teacher teacher, Subject subject, Room room, TimeSlot slot) {

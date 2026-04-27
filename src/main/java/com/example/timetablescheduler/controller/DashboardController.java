@@ -41,8 +41,8 @@ public class DashboardController {
     }
 
     @GetMapping("/generate")
-    public String generate(@RequestParam(required = false, defaultValue = "CS-101") String className) {
-        String result = timetableService.generateTimetable(className);
+    public String generate(@RequestParam(required = false, defaultValue = "CS-101") String className, @RequestParam(required = false, defaultValue = "60") int studentCount) {
+        String result = timetableService.generateTimetable(className, studentCount);
         return "redirect:/dashboard?msg=" + java.net.URLEncoder.encode(result, java.nio.charset.StandardCharsets.UTF_8);
     }
 

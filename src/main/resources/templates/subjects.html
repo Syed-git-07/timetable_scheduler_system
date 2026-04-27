@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 
-<body class="animate-fade-in">
+<body data-theme="dark">
     <nav class="navbar navbar-expand-lg glass-navbar mb-5">
         <div class="container">
             <a class="navbar-brand" href="/">TIMETABLE <span class="text-white opacity-50">SCHEDULER</span></a>
@@ -46,52 +46,14 @@
 
     <div class="container pb-5">
         <div class="row g-4">
-            <div class="col-lg-4">
+            <div class="col-lg-12">
                 <div class="glass-card">
-                    <h4 class="mb-4">Add New Subject</h4>
-                    <form th:action="@{/subjects/add}" th:object="${subject}" method="post">
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-bold">SUBJECT NAME</label>
-                            <input type="text" th:field="*{name}" class="form-control"
-                                placeholder="e.g. Data Structures" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-bold">SUBJECT CODE</label>
-                            <input type="text" th:field="*{code}" class="form-control" placeholder="CS201" required>
-                        </div>
-                        <div class="row">
-                            <div class="col-6 mb-3">
-                                <label class="form-label text-muted small fw-bold">CREDITS</label>
-                                <input type="number" th:field="*{credits}" class="form-control" placeholder="e.g. 3" min="0" max="10" required>
-                            </div>
-                            <div class="col-6 mb-3">
-                                <label class="form-label text-muted small fw-bold">PERIODS/WEEK</label>
-                                <input type="number" th:field="*{periodsPerWeek}" class="form-control" placeholder="e.g. 2" min="1" max="15" required>
-                            </div>
-                        </div>
-                        <div class="mb-4">
-                            <label class="form-label text-muted small fw-bold">SUBJECT TYPE</label>
-                            <select th:field="*{type}" class="form-select" required>
-                                <option value="">-- Select Type --</option>
-                                <option value="Theory">📚 Theory</option>
-                                <option value="Lab">🔬 Lab</option>
-                                <option value="Integrated">⚡ Integrated (Theory + Lab)</option>
-                            </select>
-                            <div class="small text-muted mt-2 p-2"
-                                style="background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(255,255,255,0.07)">
-                                <div><i class="bi bi-dot text-accent"></i><strong>Theory:</strong> Custom periods/week</div>
-                                <div><i class="bi bi-dot text-warning"></i><strong>Lab:</strong> Allocates back-to-back periods</div>
-                                <div><i class="bi bi-dot text-success"></i><strong>Integrated:</strong> Mix of Theory and Lab logic</div>
-                            </div>
-                        </div>
-                        <button type="submit" class="vibrant-btn w-100">Add Subject <i
-                                class="bi bi-plus-lg ms-1"></i></button>
-                    </form>
-                </div>
-            </div>
-            <div class="col-lg-8">
-                <div class="glass-card">
-                    <h4 class="mb-4">Subject Catalog</h4>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="mb-0">Subject Catalog</h4>
+                        <button type="button" class="vibrant-btn py-2 px-3" data-bs-toggle="modal" data-bs-target="#addSubjectModal">
+                            <i class="bi bi-plus-lg me-1"></i> Add Subject
+                        </button>
+                    </div>
                     <div class="table-responsive">
                         <table class="table text-white align-middle">
                             <thead>
@@ -122,6 +84,9 @@
                                             th:text="${s.periodsPerWeek}"></span>
                                     </td>
                                     <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary border-0 opacity-75" data-bs-toggle="modal" th:data-bs-target="'#editSubjectModal' + ${s.id}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
                                         <a th:href="@{/subjects/delete/{id}(id=${s.id})}"
                                             class="btn btn-sm btn-outline-danger border-0 opacity-50"><i
                                                 class="bi bi-trash"></i></a>
@@ -134,6 +99,103 @@
             </div>
         </div>
     </div>
+
+    <!-- Add Subject Modal -->
+    <div class="modal fade text-start" id="addSubjectModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" style="background-color: #212529; color: #f8f9fa; border: 1px solid #495057; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <div class="modal-header border-bottom border-secondary">
+                    <h5 class="modal-title fw-bold">Add New Subject</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form th:action="@{/subjects/add}" method="post">
+                    <div class="modal-body py-4">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-light">SUBJECT NAME</label>
+                            <input type="text" name="name" class="form-control" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" placeholder="e.g. Data Structures" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-light">SUBJECT CODE</label>
+                            <input type="text" name="code" class="form-control" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" placeholder="CS201" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label small fw-bold text-light">CREDITS</label>
+                                <input type="number" name="credits" class="form-control" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" placeholder="e.g. 3" min="0" max="10" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label small fw-bold text-light">PERIODS/WEEK</label>
+                                <input type="number" name="periodsPerWeek" class="form-control" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" placeholder="e.g. 2" min="1" max="15" required>
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-light">SUBJECT TYPE</label>
+                            <select name="type" class="form-select" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" required>
+                                <option value="">-- Select Type --</option>
+                                <option value="Theory">📚 Theory</option>
+                                <option value="Lab">🔬 Lab</option>
+                                <option value="Integrated">⚡ Integrated (Theory + Lab)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top border-secondary">
+                        <button type="button" class="btn btn-outline-light opacity-50" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="vibrant-btn px-4">Add Subject</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Subject Modals -->
+    <th:block th:each="s : ${subjects}">
+        <div class="modal fade text-start" th:id="'editSubjectModal' + ${s.id}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content" style="background-color: #212529; color: #f8f9fa; border: 1px solid #495057; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    <div class="modal-header border-bottom border-secondary">
+                        <h5 class="modal-title fw-bold">Edit Subject</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form th:action="@{/subjects/edit}" method="post">
+                        <input type="hidden" name="id" th:value="${s.id}">
+                        <div class="modal-body py-4">
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">SUBJECT NAME</label>
+                                <input type="text" name="name" th:value="${s.name}" class="form-control" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">SUBJECT CODE</label>
+                                <input type="text" name="code" th:value="${s.code}" class="form-control" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" required>
+                            </div>
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label class="form-label small fw-bold">CREDITS</label>
+                                    <input type="number" name="credits" th:value="${s.credits}" class="form-control" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" min="0" max="10" required>
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <label class="form-label small fw-bold">PERIODS/WEEK</label>
+                                    <input type="number" name="periodsPerWeek" th:value="${s.periodsPerWeek}" class="form-control" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" min="1" max="15" required>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label small fw-bold">SUBJECT TYPE</label>
+                                <select name="type" class="form-select" style="background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" required>
+                                    <option value="Theory" th:selected="${s.type == 'Theory'}">📚 Theory</option>
+                                    <option value="Lab" th:selected="${s.type == 'Lab'}">🔬 Lab</option>
+                                    <option value="Integrated" th:selected="${s.type == 'Integrated'}">⚡ Integrated (Theory + Lab)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer border-top border-secondary">
+                            <button type="button" class="btn btn-outline-light opacity-50" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="vibrant-btn px-4">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </th:block>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/js/theme.js"></script>
 </body>

@@ -27,6 +27,12 @@ public class RoomController {
         return "redirect:/rooms";
     }
 
+    @PostMapping("/edit")
+    public String editRoom(@ModelAttribute Room room) {
+        roomRepository.save(room);
+        return "redirect:/rooms";
+    }
+
     @GetMapping("/toggle/{id}")
     public String toggleRoom(@PathVariable Long id) {
         roomRepository.findById(id).ifPresent(r -> {

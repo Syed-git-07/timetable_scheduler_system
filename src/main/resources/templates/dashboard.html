@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 
-<body class="animate-fade-in">
+<body data-theme="dark">
     <nav class="navbar navbar-expand-lg glass-navbar mb-5">
         <div class="container">
             <a class="navbar-brand" href="/">TIMETABLE <span class="text-white opacity-50">SCHEDULER</span></a>
@@ -110,16 +110,23 @@
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h4 class="mb-0">Current Assignments</h4>
                         <div class="d-flex gap-2 align-items-center">
-                            <form action="/generate" method="get" class="d-flex gap-2">
-                                <select name="className" class="form-select form-select-sm" required>
-                                    <option value="CS-101">CS-101</option>
-                                    <option value="CS-102">CS-102</option>
-                                    <option value="CS-103">CS-103</option>
-                                    <option value="CS-201">CS-201</option>
-                                    <option value="CS-202">CS-202</option>
-                                </select>
-                                <button type="submit" class="vibrant-btn btn-sm text-nowrap"><i
-                                        class="bi bi-magic me-1"></i> Generate Weekly Schedule</button>
+                            <form action="/generate" method="get" class="d-flex flex-wrap gap-3 align-items-center">
+                                <div class="d-flex align-items-center gap-2">
+                                    <label class="form-label mb-0 fw-bold small text-muted">CLASS</label>
+                                    <select name="className" class="form-select" style="width: 130px; background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" required>
+                                        <option value="CS-101">CS-101</option>
+                                        <option value="CS-102">CS-102</option>
+                                        <option value="CS-103">CS-103</option>
+                                        <option value="CS-201">CS-201</option>
+                                        <option value="CS-202">CS-202</option>
+                                    </select>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <label class="form-label mb-0 fw-bold small text-muted"><i class="bi bi-people-fill"></i></label>
+                                    <input type="number" name="studentCount" class="form-control" placeholder="Students (e.g. 60)" style="width: 160px; background-color: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);" required>
+                                </div>
+                                <button type="submit" class="vibrant-btn btn-sm text-nowrap py-2"><i
+                                        class="bi bi-magic me-1"></i> Generate Schedule</button>
                             </form>
                             <a href="/clear" class="btn btn-sm btn-outline-danger border-0 opacity-75"
                                 onclick="return confirm('Clear entire timetable?')">
@@ -198,30 +205,30 @@
     <!-- Substitute Modal -->
     <div class="modal fade" id="substituteModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content" style="background: var(--card-bg); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);">
-                <div class="modal-header border-bottom-0">
+            <div class="modal-content" style="background-color: #212529; color: #f8f9fa; border: 1px solid #495057; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <div class="modal-header border-bottom border-secondary">
                     <h5 class="modal-title fw-bold">Substitute Absent Teacher</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form action="/substitute" method="post">
                     <div class="modal-body py-4">
                         <div class="mb-4">
-                            <label class="form-label text-muted small fw-bold">ABSENT TEACHER</label>
-                            <select name="absentTeacherId" class="form-select" required>
+                            <label class="form-label small fw-bold">ABSENT TEACHER</label>
+                            <select name="absentTeacherId" class="form-select bg-dark text-light border-secondary" required>
                                 <option value="">-- Select Absent Teacher --</option>
                                 <option th:each="t : ${teachers}" th:value="${t.id}" th:text="${t.name} + ' (' + ${t.department} + ')'"></option>
                             </select>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label text-muted small fw-bold">SUBSTITUTE TEACHER</label>
-                            <select name="substituteTeacherId" class="form-select" required>
+                            <label class="form-label small fw-bold">SUBSTITUTE TEACHER</label>
+                            <select name="substituteTeacherId" class="form-select bg-dark text-light border-secondary" required>
                                 <option value="">-- Select Substitute Teacher --</option>
                                 <option th:each="t : ${teachers}" th:value="${t.id}" th:text="${t.name} + ' (' + ${t.department} + ')'"></option>
                             </select>
                             <div class="small text-muted mt-2"><i class="bi bi-info-circle text-accent"></i> Substitute will take over all classes of the absent teacher where their schedule allows.</div>
                         </div>
                     </div>
-                    <div class="modal-footer border-top-0">
+                    <div class="modal-footer border-top border-secondary">
                         <button type="button" class="btn btn-outline-light opacity-50" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="vibrant-btn px-4">Apply Substitution</button>
                     </div>
