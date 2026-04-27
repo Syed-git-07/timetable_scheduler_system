@@ -486,8 +486,14 @@ public class TimetableService {
                             .filter(e -> e.getRoom() != null && "Lab".equalsIgnoreCase(e.getRoom().getType()))
                             .count();
                         
-                        if (pass <= 2 && labsOnDay >= 4 * sectionsRequired) continue; // Max 4 labs in Pass 1 & 2
-                        if (pass == 3 && labsOnDay >= 6 * sectionsRequired) continue; // Max 6 labs in Pass 3
+                        if (pass <= 2 && labsOnDay >= 4 * sectionsRequired) continue;
+                        if (pass == 3 && labsOnDay >= 6 * sectionsRequired) continue;
+
+                        // *** KEY FIX: Only allow valid break-aligned pairs ***
+                        // Valid pairs: (P1,P2), (P3,P4), (P5,P6), (P7,P8)
+                        // i.e., first slot of the pair must have ODD orderIndex (1,3,5,7)
+                        int startPeriod = s1.getOrderIndex();
+                        if (startPeriod % 2 == 0) continue; // Skip pairs like (2,3), (4,5), (6,7)
 
                         // Prevent adjacent labs logic
                         if (pass <= 2) {
@@ -545,7 +551,109 @@ public class TimetableService {
         return false;
     }
 
-    // CRUD wrappers for other entities if needed, but controllers can use
-    // repositories directly for simple cases
-    // However, for best practice, let's add them.
+    // =========================================================
+    // MANUAL EDIT API: Validate and Update a single timetable entry
+    // =========================================================
+
+    @Autowired
+    private SubjectRepository subjectRepository;
+
+    /**
+     * Validates and applies a manual edit to a timetable cell.
+     * Returns null on success, or an error message string describing the conflict.
+     */
+    public String validateAndUpdateEntry(Long entryId, Long subjectId, Long teacherId, Long roomId, Long timeSlotId, String customLabel) {
+        TimetableEntry entry = timetableRepository.findById(entryId).orElse(null);
+        if (entry == null) return "Entry not found.";
+
+        Teacher newTeacher = (teacherId != null) ? teacherRepository.findById(teacherId).orElse(entry.getTeacher()) : entry.getTeacher();
+        Room newRoom = (roomId != null) ? roomRepository.findById(roomId).orElse(entry.getRoom()) : entry.getRoom();
+        com.example.timetablescheduler.model.TimeSlot newSlot = (timeSlotId != null) ? timeSlotRepository.findById(timeSlotId).orElse(entry.getTimeSlot()) : entry.getTimeSlot();
+        com.example.timetablescheduler.model.Subject newSubject = (subjectId != null) ? subjectRepository.findById(subjectId).orElse(entry.getSubject()) : entry.getSubject();
+
+        // If a custom label is provided (e.g., NPTEL, LeetCode), skip subject checks
+        if (customLabel != null && !customLabel.isBlank()) {
+            entry.setSubject(null);
+            entry.setTeacher(newTeacher);
+            entry.setRoom(newRoom);
+            entry.setTimeSlot(newSlot);
+            entry.setCustomLabel(customLabel);
+            timetableRepository.save(entry);
+            return null;
+        }
+
+        // Conflict Check 1: Teacher double-booked at same slot (excluding this entry)
+        if (newTeacher != null && newSlot != null) {
+            boolean teacherBusy = timetableRepository.findAll().stream()
+                .filter(e -> !e.getId().equals(entryId))
+                .anyMatch(e -> e.getTeacher() != null && e.getTeacher().getId().equals(newTeacher.getId())
+                           && e.getTimeSlot() != null && e.getTimeSlot().getId().equals(newSlot.getId()));
+            if (teacherBusy) return "Conflict: Teacher '" + newTeacher.getName() + "' is already assigned to another class in this slot.";
+        }
+
+        // Conflict Check 2: Room double-booked at same slot (excluding this entry)
+        if (newRoom != null && newSlot != null) {
+            boolean roomBusy = timetableRepository.findAll().stream()
+                .filter(e -> !e.getId().equals(entryId))
+                .anyMatch(e -> e.getRoom() != null && e.getRoom().getId().equals(newRoom.getId())
+                           && e.getTimeSlot() != null && e.getTimeSlot().getId().equals(newSlot.getId()));
+            if (roomBusy) return "Conflict: Room '" + newRoom.getRoomNumber() + "' is already booked in this slot.";
+        }
+
+        // Conflict Check 3: Class already has another subject in the same slot
+        if (newSlot != null) {
+            boolean classBusy = timetableRepository.findByClassNameAndTimeSlot_Id(entry.getClassName(), newSlot.getId()).stream()
+                .anyMatch(e -> !e.getId().equals(entryId));
+            if (classBusy) return "Conflict: Class '" + entry.getClassName() + "' already has a period in this slot.";
+        }
+
+        // Conflict Check 4: Subject period count - warn if over-allocated
+        if (newSubject != null) {
+            long existingCount = timetableRepository.findByClassName(entry.getClassName()).stream()
+                .filter(e -> !e.getId().equals(entryId))
+                .filter(e -> e.getSubject() != null && e.getSubject().getId().equals(newSubject.getId()))
+                .count();
+            int required = newSubject.getPeriodsPerWeek();
+            if (required > 0 && existingCount >= required) {
+                return "Warning: '" + newSubject.getName() + "' already has " + existingCount + "/" + required + " periods allocated. Adding more will exceed the weekly quota.";
+            }
+        }
+
+        // All checks passed — apply changes
+        entry.setSubject(newSubject);
+        entry.setTeacher(newTeacher);
+        entry.setRoom(newRoom);
+        entry.setTimeSlot(newSlot);
+        entry.setCustomLabel(null);
+        timetableRepository.save(entry);
+        return null;
+    }
+
+    /**
+     * Add a brand-new custom entry (e.g., NPTEL, Free Study) to a currently Free Period.
+     */
+    public String addCustomEntry(String className, Long timeSlotId, String customLabel, Long teacherId, Long roomId) {
+        com.example.timetablescheduler.model.TimeSlot slot = timeSlotRepository.findById(timeSlotId).orElse(null);
+        if (slot == null) return "Invalid time slot.";
+
+        // Check not already occupied
+        boolean slotTaken = !timetableRepository.findByClassNameAndTimeSlot_Id(className, timeSlotId).isEmpty();
+        if (slotTaken) return "This slot is already occupied. Edit the existing entry instead.";
+
+        TimetableEntry entry = new TimetableEntry();
+        entry.setClassName(className);
+        entry.setTimeSlot(slot);
+        entry.setCustomLabel(customLabel);
+        if (teacherId != null) entry.setTeacher(teacherRepository.findById(teacherId).orElse(null));
+        if (roomId != null) entry.setRoom(roomRepository.findById(roomId).orElse(null));
+        timetableRepository.save(entry);
+        return null;
+    }
+
+    /**
+     * Delete a single timetable entry (clear a period).
+     */
+    public void deleteEntry(Long entryId) {
+        timetableRepository.deleteById(entryId);
+    }
 }

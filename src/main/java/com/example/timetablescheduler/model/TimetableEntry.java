@@ -22,6 +22,9 @@ public class TimetableEntry {
 
     private String className; // e.g., CS-101
 
+    @Column(length = 512)
+    private String customLabel; // e.g., NPTEL, LeetCode, Free Study
+
     public Long getId() {
         return id;
     }
@@ -68,5 +71,13 @@ public class TimetableEntry {
 
     public void setClassName(String className) {
         this.className = className;
+    }
+
+    public String getCustomLabel() {
+        return customLabel;
+    }
+
+    public void setCustomLabel(String customLabel) {
+        this.customLabel = customLabel;
     }
 }
