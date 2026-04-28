@@ -99,37 +99,49 @@
                             <td th:each="pIndex : ${periodIndices}" class="p-1">
 
                                 <!-- OCCUPIED CELL -->
-                                <div th:if="${gridMap.get(day).get(pIndex) != null}" class="tt-cell p-2 rounded position-relative"
-                                     th:attr="data-entry-id=${gridMap.get(day).get(pIndex).id},
-                                               data-subject-id=${gridMap.get(day).get(pIndex).subject != null ? gridMap.get(day).get(pIndex).subject.id : ''},
-                                               data-teacher-id=${gridMap.get(day).get(pIndex).teacher != null ? gridMap.get(day).get(pIndex).teacher.id : ''},
-                                               data-room-id=${gridMap.get(day).get(pIndex).room != null ? gridMap.get(day).get(pIndex).room.id : ''},
-                                               data-custom-label=${gridMap.get(day).get(pIndex).customLabel != null ? gridMap.get(day).get(pIndex).customLabel : ''}">
+                                <div th:if="${gridMap.get(day).get(pIndex) != null and not #lists.isEmpty(gridMap.get(day).get(pIndex))}" class="tt-cell p-2 rounded position-relative"
+                                     th:with="entryList=${gridMap.get(day).get(pIndex)}, firstEntry=${gridMap.get(day).get(pIndex)[0]}"
+                                     th:attr="data-entry-id=${firstEntry.id},
+                                               data-subject-id=${firstEntry.subject != null ? firstEntry.subject.id : ''},
+                                               data-teacher-id=${firstEntry.teacher != null ? firstEntry.teacher.id : ''},
+                                               data-room-id=${firstEntry.room != null ? firstEntry.room.id : ''},
+                                               data-custom-label=${firstEntry.customLabel != null ? firstEntry.customLabel : ''}">
 
                                     <!-- Custom label entry (NPTEL etc.) -->
-                                    <div th:if="${gridMap.get(day).get(pIndex).customLabel != null and !#strings.isEmpty(gridMap.get(day).get(pIndex).customLabel)}">
-                                        <span class="custom-badge" th:text="${gridMap.get(day).get(pIndex).customLabel}">NPTEL</span>
-                                        <div class="small text-muted mt-1" th:if="${gridMap.get(day).get(pIndex).teacher != null}" th:text="${gridMap.get(day).get(pIndex).teacher.name}"></div>
+                                    <div th:if="${firstEntry.customLabel != null and !#strings.isEmpty(firstEntry.customLabel)}">
+                                        <span class="custom-badge" th:text="${firstEntry.customLabel}">NPTEL</span>
+                                        <div class="small text-muted mt-1" th:if="${firstEntry.teacher != null}" th:text="${firstEntry.teacher.name}"></div>
                                     </div>
 
                                     <!-- Normal subject entry -->
-                                    <div th:if="${gridMap.get(day).get(pIndex).customLabel == null or #strings.isEmpty(gridMap.get(day).get(pIndex).customLabel)}">
-                                        <div class="fw-bold text-accent mb-1 small" th:text="${gridMap.get(day).get(pIndex).subject != null ? gridMap.get(day).get(pIndex).subject.name : '—'}"></div>
-                                        <div class="text-muted small" th:text="${gridMap.get(day).get(pIndex).teacher != null ? gridMap.get(day).get(pIndex).teacher.name : ''}"></div>
-                                        <span class="badge border mt-1" style="color:var(--text-main); background:rgba(0,0,0,0.05); font-size:0.7rem;"
-                                              th:text="${gridMap.get(day).get(pIndex).room != null ? gridMap.get(day).get(pIndex).room.roomNumber : ''}"></span>
+                                    <div th:if="${firstEntry.customLabel == null or #strings.isEmpty(firstEntry.customLabel)}">
+                                        <div class="fw-bold text-accent mb-1 small" th:text="${firstEntry.subject != null ? firstEntry.subject.name : '—'}"></div>
+                                        <div th:if="${entryList.size() > 1}" class="text-muted fw-bold" style="font-size: 0.7rem;">(Split Classes: [[${entryList.size()}]])</div>
                                     </div>
 
-                                    <!-- Edit overlay (admin only) -->
-                                    <div class="edit-overlay" th:if="${session.role == 'ADMIN'}"
-                                         th:attr="onclick='openEditModal(' + ${gridMap.get(day).get(pIndex).id} + ')'"
-                                         title="Edit this period">
-                                        <i class="bi bi-pencil-square"></i>
+                                    <!-- Edit & Info overlay -->
+                                    <div class="edit-overlay" title="Actions">
+                                        <i th:if="${session.role == 'ADMIN'}" class="bi bi-pencil-square" style="margin-right: 12px; font-size: 1.1rem;"
+                                           th:attr="onclick='openEditModal(' + ${firstEntry.id} + ')'" title="Edit this period"></i>
+                                        <i class="bi bi-info-circle-fill text-info" style="font-size: 1.1rem;"
+                                           th:attr="onclick='openInfoModal(\'' + ${day} + '\', ' + ${pIndex} + ')'" title="View Details"></i>
                                     </div>
+
+                                    <!-- JSON data for info modal -->
+                                    <script type="application/json" th:id="'info-data-' + ${day} + '-' + ${pIndex}">
+                                        [
+                                            <th:block th:each="e, stat : ${entryList}">
+                                                {
+                                                    "teacher": "[[${e.teacher != null ? e.teacher.name : 'N/A'}]]",
+                                                    "room": "[[${e.room != null ? e.room.roomNumber : 'N/A'}]]"
+                                                }<th:block th:if="${!stat.last}">,</th:block>
+                                            </th:block>
+                                        ]
+                                    </script>
                                 </div>
 
                                 <!-- FREE PERIOD CELL -->
-                                <div th:if="${gridMap.get(day).get(pIndex) == null}" class="tt-cell free-cell p-2 rounded d-flex align-items-center justify-content-center"
+                                <div th:if="${gridMap.get(day).get(pIndex) == null or #lists.isEmpty(gridMap.get(day).get(pIndex))}" class="tt-cell free-cell p-2 rounded d-flex align-items-center justify-content-center"
                                      style="border: 1px dashed rgba(148,163,184,0.3);"
                                      th:attr="data-day=${day}, data-period=${pIndex}">
                                     Free
@@ -145,6 +157,27 @@
                         </tr>
                     </tbody>
                 </table>
+                
+                <!-- Export text details (Hidden normally, shown in PDF/Image) -->
+                <div id="export-details" class="p-3 d-none mt-4 text-start" style="border-top: 2px dashed var(--border-color); color: var(--text-main);">
+                    <h5 class="fw-bold mb-3">Class Allocation Details</h5>
+                    <ul class="list-unstyled">
+                        <th:block th:each="day : ${days}">
+                            <th:block th:each="pIndex : ${periodIndices}">
+                                <th:block th:if="${gridMap.get(day).get(pIndex) != null and not #lists.isEmpty(gridMap.get(day).get(pIndex))}">
+                                    <th:block th:with="entryList=${gridMap.get(day).get(pIndex)}, firstEntry=${gridMap.get(day).get(pIndex)[0]}">
+                                        <li class="mb-2" th:if="${firstEntry.customLabel == null or #strings.isEmpty(firstEntry.customLabel)}">
+                                            <strong th:text="${day + ' P' + pIndex + ' - ' + (firstEntry.subject != null ? firstEntry.subject.name : '—')}"></strong>:
+                                            <span th:each="e, stat : ${entryList}" class="me-3 d-inline-block">
+                                                [Sec <span th:text="${stat.count}"></span>: Room <span th:text="${e.room != null ? e.room.roomNumber : 'N/A'}"></span>, Staff: <span th:text="${e.teacher != null ? e.teacher.name : 'N/A'}"></span>]
+                                            </span>
+                                        </li>
+                                    </th:block>
+                                </th:block>
+                            </th:block>
+                        </th:block>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -255,16 +288,53 @@
         </div>
     </div>
 
+    <!-- ====================== INFO MODAL ====================== -->
+    <div class="modal fade" id="infoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background: var(--card-bg); border: 1px solid var(--border-color);">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-info-circle me-2 text-info"></i>Allocation Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="info-modal-body">
+                    <!-- Dynamic content inserted here -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/js/theme.js"></script>
     <script th:inline="javascript">
         const CLASS_NAME = /*[[${className}]]*/ '';
-        let editModal, addCustomModal;
+        let editModal, addCustomModal, infoModal;
 
         document.addEventListener('DOMContentLoaded', () => {
             editModal      = new bootstrap.Modal(document.getElementById('editModal'));
             addCustomModal = new bootstrap.Modal(document.getElementById('addCustomModal'));
+            infoModal      = new bootstrap.Modal(document.getElementById('infoModal'));
         });
+
+        /* ── OPEN INFO MODAL ── */
+        function openInfoModal(day, pIndex) {
+            const dataScript = document.getElementById('info-data-' + day + '-' + pIndex);
+            if (!dataScript) return;
+            const data = JSON.parse(dataScript.textContent);
+            let html = '<ul class="list-group list-group-flush">';
+            data.forEach((item, index) => {
+                html += `<li class="list-group-item bg-transparent text-light border-secondary">
+                            <strong>Section ${index + 1}</strong><br>
+                            <span class="text-muted">Staff:</span> ${item.teacher} <br>
+                            <span class="text-muted">Room:</span> ${item.room}
+                         </li>`;
+            });
+            html += '</ul>';
+            document.getElementById('info-modal-body').innerHTML = html;
+            infoModal.show();
+        }
 
         /* ── OPEN EDIT MODAL ── */
         function openEditModal(entryId) {
@@ -369,20 +439,30 @@
         function exportToPDF() {
             const el = document.getElementById('timetable-content');
             el.querySelector('.export-header').classList.remove('d-none');
+            const details = document.getElementById('export-details');
+            if (details) details.classList.remove('d-none');
+            
             html2pdf().set({ margin:0.5, filename:'timetable.pdf', image:{type:'jpeg',quality:0.98},
                 html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'in',format:'letter',orientation:'landscape'}
-            }).from(el).save().then(() => el.querySelector('.export-header').classList.add('d-none'));
+            }).from(el).save().then(() => {
+                el.querySelector('.export-header').classList.add('d-none');
+                if (details) details.classList.add('d-none');
+            });
         }
 
         function exportToImage() {
             const el = document.getElementById('timetable-content');
             el.querySelector('.export-header').classList.remove('d-none');
+            const details = document.getElementById('export-details');
+            if (details) details.classList.remove('d-none');
+            
             html2canvas(el, {scale:2,useCORS:true}).then(canvas => {
                 const link = document.createElement('a');
                 link.download = 'timetable.jpg';
                 link.href = canvas.toDataURL('image/jpeg', 0.9);
                 link.click();
                 el.querySelector('.export-header').classList.add('d-none');
+                if (details) details.classList.add('d-none');
             });
         }
     </script>

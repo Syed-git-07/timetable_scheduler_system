@@ -345,16 +345,25 @@ public class TimetableService {
         if (timeSlots.isEmpty())
             return "No time slots found. Use 'Seed 8-Period Day' on the Time Slots page.";
 
+        List<Subject> uniqueSubjects = teachers.stream()
+                .map(Teacher::getHandledSubject)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+
         int generatedCount = 0;
 
-        for (Teacher teacher : teachers) {
-            Subject subject = teacher.getHandledSubject();
-            if (subject == null)
-                continue;
+        for (Subject subject : uniqueSubjects) {
+            List<Teacher> subjectTeachers = teachers.stream()
+                .filter(t -> t.getHandledSubject() != null && t.getHandledSubject().getId().equals(subject.getId()))
+                .toList();
+
+            if (subjectTeachers.size() < sectionsRequired) {
+                continue; // Cannot schedule this subject due to insufficient qualified teachers
+            }
 
             int theoryPeriods = 0;
             int labPeriods = 0;
-            boolean needsDoubleLab = false;
 
             String type = subject.getType() != null ? subject.getType() : "Theory";
             int totalPeriods = subject.getPeriodsPerWeek();
@@ -373,28 +382,42 @@ public class TimetableService {
             int remainingLabSingles = labPeriods % 2;
 
             for (int i = 0; i < doubleBlocks; i++) {
-                if (scheduleContinuous(className, teacher, subject, rooms, timeSlots, true, sectionsRequired)) {
-                    generatedCount += 2;
+                if (scheduleContinuous(className, subjectTeachers, subject, rooms, timeSlots, true, sectionsRequired)) {
+                    generatedCount += 2 * sectionsRequired;
                 }
             }
 
             for (int i = 0; i < remainingLabSingles; i++) {
-                if (scheduleSingle(className, teacher, subject, rooms, timeSlots, true, sectionsRequired)) {
-                    generatedCount++;
+                if (scheduleSingle(className, subjectTeachers, subject, rooms, timeSlots, true, sectionsRequired)) {
+                    generatedCount += 1 * sectionsRequired;
                 }
             }
 
             // Schedule theory periods
             for (int i = 0; i < theoryPeriods; i++) {
-                if (scheduleSingle(className, teacher, subject, rooms, timeSlots, false, sectionsRequired)) {
-                    generatedCount++;
+                if (scheduleSingle(className, subjectTeachers, subject, rooms, timeSlots, false, sectionsRequired)) {
+                    generatedCount += 1 * sectionsRequired;
                 }
             }
         }
         return "Timetable generated for class '" + className + "'. Total periods assigned: " + generatedCount;
     }
 
-    private boolean scheduleSingle(String className, Teacher teacher, Subject subject, List<Room> rooms,
+    private List<Room> getValidRooms(List<Room> rooms, TimeSlot slot, boolean isLabPeriod) {
+        return rooms.stream().filter(room -> {
+            if (isLabPeriod && (room.getType() == null || !room.getType().equalsIgnoreCase("Lab"))) return false;
+            if (!isLabPeriod && room.getType() != null && room.getType().equalsIgnoreCase("Lab")) return false;
+            return !timetableRepository.existsByRoom_IdAndTimeSlot_Id(room.getId(), slot.getId());
+        }).toList();
+    }
+
+    private List<Teacher> getValidTeachers(List<Teacher> teachers, TimeSlot slot) {
+        return teachers.stream().filter(teacher -> 
+            !timetableRepository.existsByTeacher_IdAndTimeSlot_Id(teacher.getId(), slot.getId())
+        ).toList();
+    }
+
+    private boolean scheduleSingle(String className, List<Teacher> subjectTeachers, Subject subject, List<Room> rooms,
             List<TimeSlot> timeSlots, boolean isLabPeriod, int sectionsRequired) {
         
         List<TimetableEntry> currentEntries = timetableRepository.findByClassName(className);
@@ -412,7 +435,7 @@ public class TimetableService {
                                
             if (subjectAlreadyOnThisDay) continue;
 
-            if (isClassBusy(className, slot, sectionsRequired)) continue;
+            if (isClassBusy(className, slot, 1)) continue;
 
             if (isLabPeriod) {
                 long labsOnDay = currentEntries.stream()
@@ -422,20 +445,20 @@ public class TimetableService {
                 if (labsOnDay >= 4 * sectionsRequired) continue; // Enforce max 4 lab periods per day
             }
 
-            for (Room room : rooms) {
-                if (isLabPeriod && (room.getType() == null || !room.getType().equalsIgnoreCase("Lab"))) continue;
-                if (!isLabPeriod && room.getType() != null && room.getType().equalsIgnoreCase("Lab")) continue;
+            List<Room> validRooms = getValidRooms(rooms, slot, isLabPeriod);
+            List<Teacher> validTeachers = getValidTeachers(subjectTeachers, slot);
 
-                if (!isConflict(teacher, room, slot)) {
-                    saveEntry(className, teacher, subject, room, slot);
-                    return true;
+            if (validRooms.size() >= sectionsRequired && validTeachers.size() >= sectionsRequired) {
+                for(int i = 0; i < sectionsRequired; i++) {
+                    saveEntry(className, validTeachers.get(i), subject, validRooms.get(i), slot);
                 }
+                return true;
             }
         }
         
         // Pass 2: Fallback (allow multiple periods on the same day if we couldn't spread it)
         for (TimeSlot slot : shuffledSlots) {
-            if (isClassBusy(className, slot, sectionsRequired)) continue;
+            if (isClassBusy(className, slot, 1)) continue;
 
             if (isLabPeriod) {
                 long labsOnDay = currentEntries.stream()
@@ -445,20 +468,20 @@ public class TimetableService {
                 if (labsOnDay >= 6 * sectionsRequired) continue; // Max 6 labs as absolute fallback
             }
 
-            for (Room room : rooms) {
-                if (isLabPeriod && (room.getType() == null || !room.getType().equalsIgnoreCase("Lab"))) continue;
-                if (!isLabPeriod && room.getType() != null && room.getType().equalsIgnoreCase("Lab")) continue;
+            List<Room> validRooms = getValidRooms(rooms, slot, isLabPeriod);
+            List<Teacher> validTeachers = getValidTeachers(subjectTeachers, slot);
 
-                if (!isConflict(teacher, room, slot)) {
-                    saveEntry(className, teacher, subject, room, slot);
-                    return true;
+            if (validRooms.size() >= sectionsRequired && validTeachers.size() >= sectionsRequired) {
+                for(int i = 0; i < sectionsRequired; i++) {
+                    saveEntry(className, validTeachers.get(i), subject, validRooms.get(i), slot);
                 }
+                return true;
             }
         }
         return false;
     }
 
-    private boolean scheduleContinuous(String className, Teacher teacher, Subject subject, List<Room> rooms,
+    private boolean scheduleContinuous(String className, List<Teacher> subjectTeachers, Subject subject, List<Room> rooms,
             List<TimeSlot> timeSlots, boolean isLabPeriod, int sectionsRequired) {
         
         // 3 Passes to enforce strict constraints, then loosen them if necessary.
@@ -471,7 +494,7 @@ public class TimetableService {
 
                 if (s1.getDayOfWeek().equals(s2.getDayOfWeek()) &&
                         s2.getOrderIndex() == s1.getOrderIndex() + 1 &&
-                        !isClassBusy(className, s1, sectionsRequired) && !isClassBusy(className, s2, sectionsRequired)) {
+                        !isClassBusy(className, s1, 1) && !isClassBusy(className, s2, 1)) {
                     
                     boolean subjectAlreadyOnThisDay = currentEntries.stream()
                         .anyMatch(e -> e.getSubject() != null && e.getSubject().getId().equals(subject.getId()) 
@@ -511,15 +534,24 @@ public class TimetableService {
                         }
                     }
 
-                    for (Room room : rooms) {
-                        if (isLabPeriod && (room.getType() == null || !room.getType().equalsIgnoreCase("Lab"))) continue;
-                        if (!isLabPeriod && room.getType() != null && room.getType().equalsIgnoreCase("Lab")) continue;
+                    List<Room> validRooms1 = getValidRooms(rooms, s1, isLabPeriod);
+                    List<Room> validRooms2 = getValidRooms(rooms, s2, isLabPeriod);
+                    List<Room> continuousRooms = validRooms1.stream()
+                        .filter(r -> validRooms2.stream().anyMatch(r2 -> r2.getId().equals(r.getId())))
+                        .toList();
 
-                        if (!isConflict(teacher, room, s1) && !isConflict(teacher, room, s2)) {
-                            saveEntry(className, teacher, subject, room, s1);
-                            saveEntry(className, teacher, subject, room, s2);
-                            return true;
+                    List<Teacher> validTeachers1 = getValidTeachers(subjectTeachers, s1);
+                    List<Teacher> validTeachers2 = getValidTeachers(subjectTeachers, s2);
+                    List<Teacher> continuousTeachers = validTeachers1.stream()
+                        .filter(t -> validTeachers2.stream().anyMatch(t2 -> t2.getId().equals(t.getId())))
+                        .toList();
+
+                    if (continuousRooms.size() >= sectionsRequired && continuousTeachers.size() >= sectionsRequired) {
+                        for(int j = 0; j < sectionsRequired; j++) {
+                            saveEntry(className, continuousTeachers.get(j), subject, continuousRooms.get(j), s1);
+                            saveEntry(className, continuousTeachers.get(j), subject, continuousRooms.get(j), s2);
                         }
+                        return true;
                     }
                 }
             }
@@ -603,8 +635,8 @@ public class TimetableService {
         // Conflict Check 3: Class already has another subject in the same slot
         if (newSlot != null) {
             boolean classBusy = timetableRepository.findByClassNameAndTimeSlot_Id(entry.getClassName(), newSlot.getId()).stream()
-                .anyMatch(e -> !e.getId().equals(entryId));
-            if (classBusy) return "Conflict: Class '" + entry.getClassName() + "' already has a period in this slot.";
+                .anyMatch(e -> !e.getId().equals(entryId) && (e.getSubject() == null || newSubject == null || !e.getSubject().getId().equals(newSubject.getId())));
+            if (classBusy) return "Conflict: Class '" + entry.getClassName() + "' already has a different subject period in this slot.";
         }
 
         // Conflict Check 4: Subject period count - warn if over-allocated

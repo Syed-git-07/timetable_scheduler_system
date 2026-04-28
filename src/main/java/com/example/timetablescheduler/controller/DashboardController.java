@@ -86,8 +86,8 @@ public class DashboardController {
             periodTimes.put(s.getOrderIndex(), s.getStartTime() + " - " + s.getEndTime());
         }
         
-        // Build 2D grid map: Day -> (PeriodIndex -> Entry)
-        java.util.Map<String, java.util.Map<Integer, com.example.timetablescheduler.model.TimetableEntry>> gridMap = new java.util.HashMap<>();
+        // Build 2D grid map: Day -> (PeriodIndex -> List<Entry>)
+        java.util.Map<String, java.util.Map<Integer, java.util.List<com.example.timetablescheduler.model.TimetableEntry>>> gridMap = new java.util.HashMap<>();
         for (String day : sortedDays.isEmpty() ? days : sortedDays) {
             gridMap.put(day, new java.util.HashMap<>());
         }
@@ -96,7 +96,9 @@ public class DashboardController {
             if (e.getTimeSlot() != null) {
                 String day = e.getTimeSlot().getDayOfWeek();
                 int pIndex = e.getTimeSlot().getOrderIndex();
-                gridMap.computeIfAbsent(day, k -> new java.util.HashMap<>()).put(pIndex, e);
+                gridMap.computeIfAbsent(day, k -> new java.util.HashMap<>())
+                       .computeIfAbsent(pIndex, k -> new java.util.ArrayList<>())
+                       .add(e);
             }
         }
         
