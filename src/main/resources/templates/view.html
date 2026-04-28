@@ -127,17 +127,13 @@
                                            th:attr="onclick='openInfoModal(\'' + ${day} + '\', ' + ${pIndex} + ')'" title="View Details"></i>
                                     </div>
 
-                                    <!-- JSON data for info modal -->
-                                    <script type="application/json" th:id="'info-data-' + ${day} + '-' + ${pIndex}">
-                                        [
-                                            <th:block th:each="e, stat : ${entryList}">
-                                                {
-                                                    "teacher": "[[${e.teacher != null ? e.teacher.name : 'N/A'}]]",
-                                                    "room": "[[${e.room != null ? e.room.roomNumber : 'N/A'}]]"
-                                                }<th:block th:if="${!stat.last}">,</th:block>
-                                            </th:block>
-                                        ]
-                                    </script>
+                                    <!-- Data for info modal -->
+                                    <div class="d-none" th:id="'info-data-' + ${day} + '-' + ${pIndex}">
+                                        <div class="info-section" th:each="e : ${entryList}">
+                                            <div class="info-teacher" th:text="${e.teacher != null ? e.teacher.name : 'N/A'}"></div>
+                                            <div class="info-room" th:text="${e.room != null ? e.room.roomNumber : 'N/A'}"></div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- FREE PERIOD CELL -->
@@ -320,17 +316,23 @@
 
         /* ── OPEN INFO MODAL ── */
         function openInfoModal(day, pIndex) {
-            const dataScript = document.getElementById('info-data-' + day + '-' + pIndex);
-            if (!dataScript) return;
-            const data = JSON.parse(dataScript.textContent);
+            const container = document.getElementById('info-data-' + day + '-' + pIndex);
+            if (!container) return;
+            
+            const sections = container.querySelectorAll('.info-section');
             let html = '<ul class="list-group list-group-flush">';
-            data.forEach((item, index) => {
-                html += `<li class="list-group-item bg-transparent text-light border-secondary">
+            
+            sections.forEach((sec, index) => {
+                const teacher = sec.querySelector('.info-teacher').textContent;
+                const room = sec.querySelector('.info-room').textContent;
+                
+                html += `<li class="list-group-item" style="background: transparent; border-color: var(--border-color); color: var(--text-main);">
                             <strong>Section ${index + 1}</strong><br>
-                            <span class="text-muted">Staff:</span> ${item.teacher} <br>
-                            <span class="text-muted">Room:</span> ${item.room}
+                            <span class="text-muted">Staff:</span> ${teacher} <br>
+                            <span class="text-muted">Room:</span> ${room}
                          </li>`;
             });
+            
             html += '</ul>';
             document.getElementById('info-modal-body').innerHTML = html;
             infoModal.show();
